@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Soccer Air Hockey</title>
+<style>
+    body {
+        margin: 0;
+        background: #1b5e20;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        font-family: Arial, sans-serif;
+        color: white;
+    }
+
+    canvas {
+        background: #4caf50;
+        border: 5px solid white;
+        border-radius: 10px;
+    }
+
+    .score {
+        position: absolute;
+        top: 10px;
+        font-size: 20px;
+    }
+</style>
+</head>
+<body>
+
+<div class="score" id="score">Red: 0 | Blue: 0</div>
+<canvas id="game" width="900" height="450"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let scores = { red: 0, blue: 0 };
+
+const ball = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    r: 12,
+    vx: 0,
+    vy: 0
+};
+
+const player1 = {
+    x: 150,
+    y: canvas.height / 2,
+    r: 20,
+    speed: 4,
+    color: "red"
+};
+
+const player2 = {
+    x: canvas.width - 150,
+    y: canvas.height / 2,
+    r: 20,
+    speed: 4,
+    color: "blue"
+};
+
+const keys = {};
+
+const goalWidth = 10;
+const goalHeight = 120;
+
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
+
+function movePlayers() {
+    // Player 1 (WASD)
+    if (keys["w"]) player1.y -= player1.speed;
+    if (keys["s"]) player1.y += player1.speed;
+    if (keys["a"]) player1.x -= player1.speed;
+    if (keys["d"]) player1.x += player1.speed;
+
+    // Player 2 (Arrow Keys)
+    if (keys["ArrowUp"]) player2.y -= player2.speed;
+    if (keys["ArrowDown"]) player2.y += player2.speed;
+    if (keys["ArrowLeft"]) player2.x -= player2.speed;
+    if (keys["ArrowRight"]) player2.x += player2.speed;
+
+    keepInBounds(player1);
+    keepInBounds(player2);
+}
+
+function keepInBounds(p) {
+    p.x = Math.max(p.r, Math.min(canvas.width - p.r, p.x));
+    p.y = Math.max(p.r, Math.min(canvas.height - p.r, p.y));
+}
+
+function collide(player) {
+    const dx = ball.x - player.x;
+    const dy = ball.y - player.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < ball.r + player.r) {
+        const angle = Math.atan2(dy, dx);
+        const force = 5;
+        ball.vx = Math.cos(angle) * force;
+        ball.vy = Math.sin(angle) * force;
+    }
+}
+
+function updateBall() {
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    ball.vx *= 0.99;
+    ball.vy *= 0.99;
+
+    // Wall collision
+    if (ball.y < ball.r || ball.y > canvas.height - ball.r) {
+        ball.vy *= -1;
+    }
+
+    // Goal detection
+    if (ball.x < goalWidth &&
+        ball.y > canvas.height / 2 - goalHeight / 2 &&
+        ball.y < canvas.height / 2 + goalHeight / 2) {
+        scores.blue++;
+        reset();
+    }
+
+    if (ball.x > canvas.width - goalWidth &&
+        ball.y > canvas.height / 2 - goalHeight / 2 &&
+        ball.y < canvas.height / 2 + goalHeight / 2) {
+        scores.red++;
+        reset();
+    }
+
+    // Side walls
+    if (ball.x < ball.r || ball.x > canvas.width - ball.r) {
+        ball.vx *= -1;
+    }
+}
+
+function reset() {
+    ball.x = canvas.width / 2;
+    ball.y = canvas.height / 2;
+    ball.vx = 0;
+    ball.vy = 0;
+
+    document.getElementById("score").textContent =
+        `Red: ${scores.red} | Blue: ${scores.blue}`;
+}
+
+function drawField() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Center line
+    ctx.strokeStyle = "white";
+    ctx.beginPath();
+    ctx.moveTo(canvas.width / 2, 0);
+    ctx.lineTo(canvas.width / 2, canvas.height);
+    ctx.stroke();
+
+    // Center circle
+    ctx.beginPath();
+    ctx.arc(canvas.width / 2, canvas.height / 2, 60, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Goals
+    ctx.fillRect(0, canvas.height / 2 - goalHeight / 2, goalWidth, goalHeight);
+    ctx.fillRect(canvas.width - goalWidth, canvas.height / 2 - goalHeight / 2, goalWidth, goalHeight);
+}
+
+function drawCircle(obj) {
+    ctx.beginPath();
+    ctx.arc(obj.x, obj.y, obj.r, 0, Math.PI * 2);
